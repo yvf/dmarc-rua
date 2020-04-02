@@ -211,7 +211,7 @@ def split_ips(ctx, param, value) -> set:
 
 
 @click.command()
-@click.option('--domain', required=True, is_eager=True, callback=get_domain_mx,
+@click.option('--domain', required=True, callback=get_domain_mx,
               help='The FQDN the report is for')
 # default in read-from is redundant, but won't work without it. Maybe a click bug.
 @click.option('--source', help='Optional file to read from', default=sys.stdin)
@@ -230,12 +230,12 @@ def main(domain, ip, source, input_format='xml'):
     try:
         if input_format == 'smtp':
             source = extract_xml(source)
-        xml = xml.etree.ElementTree.parse(source)
+        xml_tree = xml.etree.ElementTree.parse(source)
     except Exception as e:
         fatal(str(e))
 
     # initialize the report object with the xml data
-    report = RuaReport(xml, ip)
+    report = RuaReport(xml_tree, ip)
 
     success = True
     msgs = []
