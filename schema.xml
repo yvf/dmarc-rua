@@ -1,0 +1,110 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://dmarc.org/dmarc-xml/0.1">
+   <!-- The time range in UTC covered by messages in this report,
+        specified in seconds since epoch. -->
+   <xs:complexType name="DateRangeType">
+     <xs:all>
+       <xs:element name="begin" type="xs:integer"/>
+       <xs:element name="end" type="xs:integer"/>
+     </xs:all>
+   </xs:complexType>
+
+   <!-- Report generator metadata. -->
+   <xs:complexType name="ReportMetadataType">
+     <xs:sequence>
+       <xs:element name="org_name" type="xs:string"/>
+       <xs:element name="email" type="xs:string"/>
+       <xs:element name="extra_contact_info" type="xs:string"
+                   minOccurs="0"/>
+       <xs:element name="report_id" type="xs:string"/>
+       <xs:element name="date_range" type="xs:DateRangeType"/>
+       <xs:element name="error" type="xs:string" minOccurs="0"
+                   maxOccurs="unbounded"/>
+     </xs:sequence>
+   </xs:complexType>
+
+   <!-- Alignment mode (relaxed or strict) for DKIM and SPF. -->
+   <xs:simpleType name="AlignmentType">
+     <xs:restriction base="xs:string">
+       <xs:enumeration value="r"/>
+       <xs:enumeration value="s"/>
+     </xs:restriction>
+   </xs:simpleType>
+
+   <!-- The policy actions specified by p and sp in the
+        DMARC record. -->
+   <xs:simpleType name="DispositionType">
+     <xs:restriction base="xs:string">
+       <xs:enumeration value="none"/>
+       <xs:enumeration value="quarantine"/>
+       <xs:enumeration value="reject"/>
+     </xs:restriction>
+   </xs:simpleType>
+
+   <!-- The DMARC policy that applied to the messages in
+        this report. -->
+   <xs:complexType name="PolicyPublishedType">
+     <xs:all>
+       <!-- The domain at which the DMARC record was found. -->
+       <xs:element name="domain" type="xs:string"/>
+       <!-- The DKIM alignment mode. -->
+       <xs:element name="adkim" type="xs:AlignmentType"
+                   minOccurs="0"/>
+       <!-- The SPF alignment mode. -->
+       <xs:element name="aspf" type="xs:AlignmentType"
+                   minOccurs="0"/>
+       <!-- The policy to apply to messages from the domain. -->
+       <xs:element name="p" type="xs:DispositionType"/>
+       <!-- The policy to apply to messages from subdomains. -->
+       <xs:element name="sp" type="xs:DispositionType"/>
+       <!-- The percent of messages to which policy applies. -->
+       <xs:element name="pct" type="xs:integer"/>
+       <!-- Failure reporting options in effect. -->
+       <xs:element name="fo" type="xs:string"/>
+     </xs:all>
+   </xs:complexType>
+   <!-- The DMARC-aligned authentication result. -->
+   <xs:simpleType name="DMARCResultType">
+     <xs:restriction base="xs:string">
+       <xs:enumeration value="pass"/>
+       <xs:enumeration value="fail"/>
+     </xs:restriction>
+   </xs:simpleType>
+
+   <!-- Reasons that may affect DMARC disposition or execution
+        thereof. -->
+   <xs:simpleType name="PolicyOverrideType">
+     <xs:restriction base="xs:string">
+       <xs:enumeration value="forwarded"/>
+       <xs:enumeration value="sampled_out"/>
+       <xs:enumeration value="trusted_forwarder"/>
+       <xs:enumeration value="mailing_list"/>
+       <xs:enumeration value="local_policy"/>
+       <xs:enumeration value="other"/>
+     </xs:restriction>
+   </xs:simpleType>
+
+   <!-- How do we allow report generators to include new
+        classes of override reasons if they want to be more
+        specific than "other"? -->
+   <xs:complexType name="PolicyOverrideReason">
+     <xs:all>
+       <xs:element name="type" type="xs:PolicyOverrideType"/>
+       <xs:element name="comment" type="xs:string"
+                   minOccurs="0"/>
+     </xs:all>
+   </xs:complexType>
+
+   <!-- Taking into account everything else in the record,
+        the results of applying DMARC. -->
+   <xs:complexType name="PolicyEvaluatedType">
+     <xs:sequence>
+       <xs:element name="disposition" type="xs:DispositionType"/>
+       <xs:element name="dkim" type="xs:DMARCResultType"/>
+       <xs:element name="spf" type="xs:DMARCResultType"/>
+       <xs:element name="reason" type="xs:PolicyOverrideReason"
+                   minOccurs="0" maxOccurs="unbounded"/>
+     </xs:sequence>
+   </xs:complexType>
+</xs:schema>

@@ -1,0 +1,4 @@
+virtualenv/
+data/
+.mypy_cache/
+*~
