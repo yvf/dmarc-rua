@@ -27,7 +27,7 @@ import sys
 import xml.etree.ElementTree
 import zipfile
 
-from typing import List, Union, TextIO
+from typing import List, Optional, TextIO, Union
 
 log = None
 def init_logging() -> None:
@@ -81,8 +81,8 @@ class RuaReport(object):
         if found_domain != expected_domain:
             self.errors.append(f'Unexpected domain in report published policy: {found_domain}')
 
-    def validate_policy_current(self, domain: str) -> None:
-        """Validate that the dns policy is consistent with the report's"""
+    def _get_domain_dmarc_policy(self, domain: str) -> Optional[str]:
+        """Split out the DNS lookup for testing purposes."""
         dmarc_host = '_dmarc.' + domain
         try:
             answers = dns.resolver.query(dmarc_host, 'TXT')
@@ -94,8 +94,12 @@ class RuaReport(object):
             self.errors.append('policy dns lookup failed: expected exactly 1 answer')
             return
 
-        dns_txt = answers[0].to_text().strip('"')
-        dns_rec = dict([x.strip().split('=') for x in dns_txt.split(';')])
+        return answers[0].to_text().strip('"')
+
+    def validate_policy_current(self, domain: str) -> None:
+        """Validate that the dns policy is consistent with the report's"""
+        dns_txt = self._get_domain_dmarc_policy(domain)
+        dns_rec = dict([x.strip().split('=') for x in dns_txt.split(';') if x])
 
         report_policy = self.root.findall('./policy_published/p')
         if len(report_policy) != 1:
