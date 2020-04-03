@@ -75,6 +75,7 @@ class RuaReport(object):
             if count > 1:
                 found = ','.join([x.text for x in domains])
                 self.errors.append(f'Domain validation: domains found: {found}')
+            return
 
         found_domain = domains[0].text
         if found_domain != expected_domain:

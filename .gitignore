@@ -1,4 +1,5 @@
 virtualenv/
 data/
 .mypy_cache/
+__pycache__/
 *~
