@@ -142,16 +142,15 @@ class RuaReport(object):
             dkim = record.find('./auth_results/dkim/result')
             spf = record.find('./auth_results/spf/result')
             if source_ip in self.domain_ips:
-                if dkim and dkim.text != 'pass':
-                    self.errors.append('DKIM failed for our host ({source_ip}')
-                if spf and spf.text != 'pass':
-                    self.errors.append('SPF failed for our host ({source_ip}')
+                if dkim is not None and dkim.text != 'pass':
+                    self.errors.append(f'DKIM failed for our host ({source_ip}')
+                if spf is not None and spf.text != 'pass':
+                    self.errors.append(f'SPF failed for our host ({source_ip}')
             else:
-                if dkim and dkim.text == 'pass':
-                    self.errors.append('DKIM succeeded for foreign host ({source_ip}')
-                if spf and spf.text == 'pass':
-                    self.errors.append('SPF succeeded for foreign host ({source_ip}')
-
+                if dkim is not None and dkim.text == 'pass':
+                    self.errors.append(f'DKIM succeeded for foreign host ({source_ip})')
+                if spf is not None and spf.text == 'pass':
+                    self.errors.append(f'SPF succeeded for foreign host ({source_ip})')
 
 def fatal(msg: str):
     log.critical(msg)

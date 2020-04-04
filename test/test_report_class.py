@@ -143,7 +143,7 @@ class TestRuaReport(unittest.TestCase):
             '</feedback>'
         )
         xml_tree = xml.etree.ElementTree.parse(io.StringIO(xml_source))
-        domain_ips = set(('192.168.1.1','10.10.10.10'))
+        domain_ips = set(['192.168.1.1','10.10.10.10'])
         report = RuaReport(xml_tree, domain_ips)
         report.validate_ips()
         self.assertTrue(
@@ -163,7 +163,7 @@ class TestRuaReport(unittest.TestCase):
             '</feedback>'
         )
         xml_tree = xml.etree.ElementTree.parse(io.StringIO(xml_source))
-        domain_ips = set(('10.10.10.1'))
+        domain_ips = set(['10.10.10.1'])
         report = RuaReport(xml_tree, domain_ips)
         report.validate_ips()
         self.assertFalse(
@@ -221,6 +221,90 @@ class TestRuaReport(unittest.TestCase):
         self.assertEqual(len(report.errors), 1, msg='Incorrect error count')
         self.assertTrue('Mismatched from fields in header' in report.errors[0],
                         msg='Error text mismatch for "from" check')
+
+    def test_validate_dkim_sfp_pass(self):
+        """Test that dkim / spf authentication passed for our IP,
+        and failed for an IP outside our domain"""
+        xml_source = (
+            '<?xml version="1.0" encoding="UTF-8" ?>'
+            '<feedback>'
+            '  <version>1.0</version>'
+            '  <record>'
+            '    <row>'
+            '      <source_ip>10.0.0.1</source_ip>'
+            '    </row>'
+            '    <auth_results>'
+            '      <spf>'
+            '        <result>pass</result>'
+            '      </spf>'
+            '      <dkim>'
+            '        <result>pass</result>'
+            '      </dkim>'
+            '    </auth_results>'
+            '  </record>'
+            '  <record>'
+            '    <row>'
+            '      <source_ip>192.168.1.1</source_ip>'
+            '    </row>'
+            '    <auth_results>'
+            '      <spf>'
+            '        <result>fail</result>'
+            '      </spf>'
+            '      <dkim>'
+            '        <result>fail</result>'
+            '      </dkim>'
+            '    </auth_results>'
+            '  </record>'
+            '</feedback>'
+        )
+        xml_tree = xml.etree.ElementTree.parse(io.StringIO(xml_source))
+        report = RuaReport(xml_tree, set(['10.0.0.1']))
+        report.validate_dkim_spf()
+        self.assertTrue(
+            report.ok(), msg='DKIM and SPF test unexpectedly failed')
+        self.assertFalse(len(report.errors), msg='Incorrect error count')
+
+    def test_validate_dkim_sfp_fail(self):
+        """Test that dkim / spf authentication failed for our IP,
+        and passed for an IP outside our domain"""
+        xml_source = (
+            '<?xml version="1.0" encoding="UTF-8" ?>'
+            '<feedback>'
+            '  <version>1.0</version>'
+            '  <record>'
+            '    <row>'
+            '      <source_ip>10.0.0.1</source_ip>'
+            '    </row>'
+            '    <auth_results>'
+            '      <spf>'
+            '        <result>fail</result>'
+            '      </spf>'
+            '      <dkim>'
+            '        <result>fail</result>'
+            '      </dkim>'
+            '    </auth_results>'
+            '  </record>'
+            '  <record>'
+            '    <row>'
+            '      <source_ip>192.168.1.1</source_ip>'
+            '    </row>'
+            '    <auth_results>'
+            '      <spf>'
+            '        <result>pass</result>'
+            '      </spf>'
+            '      <dkim>'
+            '        <result>pass</result>'
+            '      </dkim>'
+            '    </auth_results>'
+            '  </record>'
+            '</feedback>'
+        )
+        xml_tree = xml.etree.ElementTree.parse(io.StringIO(xml_source))
+        report = RuaReport(xml_tree, set(['10.0.0.1']))
+        report.validate_dkim_spf()
+        self.assertFalse(
+            report.ok(), msg='DKIM and SPF test passed unexpectedly')
+        self.assertEqual(len(report.errors), 4, msg='Incorrect error count')
 
 
 if __name__ == '__main__':
