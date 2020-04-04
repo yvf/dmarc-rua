@@ -129,7 +129,7 @@ class RuaReport(object):
         for record_ids in records:
             header = record_ids.find('header_from')
             envelope = record_ids.find('envelope_from')
-            if header and envelope: # Google doesn't appear to respect the standard
+            if header is not None and envelope is not None: # not all respect standard
                 if header.text != envelope.text:
                     msg = f'Mismatched from fields in header ({header}) and envelope ({envelope})'
                     self.errors.append(msg)

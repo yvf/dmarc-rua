@@ -26,10 +26,8 @@ class TestRuaReport(unittest.TestCase):
             '  </policy_published>'
             '</feedback>'
         )
-
         xml_tree = xml.etree.ElementTree.parse(io.StringIO(xml_source))
-        ip = '192.168.1.1'
-        report = RuaReport(xml_tree, ip)
+        report = RuaReport(xml_tree, set())
         report.validate_domain('testdomain.com')
         self.assertTrue(report.ok())
 
@@ -43,10 +41,8 @@ class TestRuaReport(unittest.TestCase):
             '  </policy_published>'
             '</feedback>'
         )
-
         xml_tree = xml.etree.ElementTree.parse(io.StringIO(xml_source))
-        ip = '192.168.1.1'
-        report = RuaReport(xml_tree, ip)
+        report = RuaReport(xml_tree, set())
         report.validate_domain('testdomain.com')
         self.assertFalse(report.ok())
         errs = report.errors
@@ -65,10 +61,8 @@ class TestRuaReport(unittest.TestCase):
             '  </policy_published>'
             '</feedback>'
         )
-
         xml_tree = xml.etree.ElementTree.parse(io.StringIO(xml_source))
-        ip = '192.168.1.1'
-        report = RuaReport(xml_tree, ip)
+        report = RuaReport(xml_tree, set())
         report.validate_domain('testdomain.com')
         self.assertFalse(report.ok())
         errs = report.errors
@@ -81,7 +75,6 @@ class TestRuaReport(unittest.TestCase):
             '<?xml version="1.0" encoding="UTF-8" ?>'
             '<feedback/>'
         )
-
         xml_tree = xml.etree.ElementTree.parse(io.StringIO(xml_source))
         report = RuaReport(xml_tree, '')
         res = report._get_domain_dmarc_policy('none.nxtld')
@@ -102,9 +95,8 @@ class TestRuaReport(unittest.TestCase):
             '  </policy_published>'
             '</feedback>'
         )
-
         xml_tree = xml.etree.ElementTree.parse(io.StringIO(xml_source))
-        report = RuaReport(xml_tree, '')
+        report = RuaReport(xml_tree, set())
         dns_policy = 'v=DMARC1; p=reject;'
         report._get_domain_dmarc_policy = Mock(return_value=dns_policy)
         report.validate_policy_current('test.com')
@@ -121,9 +113,8 @@ class TestRuaReport(unittest.TestCase):
             '  </policy_published>'
             '</feedback>'
         )
-
         xml_tree = xml.etree.ElementTree.parse(io.StringIO(xml_source))
-        report = RuaReport(xml_tree, '')
+        report = RuaReport(xml_tree, set())
         dns_policy = 'v=DMARC1; p=reject;'
         report._get_domain_dmarc_policy = Mock(return_value=dns_policy)
         report.validate_policy_current('test.com')
@@ -133,6 +124,103 @@ class TestRuaReport(unittest.TestCase):
             len(report.errors), 1,msg='Not exactly 1 error on policy mismatch')
         self.assertTrue('DNS policy does not match' in report.errors[0],
                         msg='Wrong error string on policy mismatch')
+
+    def test_validate_ips_pass(self):
+        xml_source = (
+            '<?xml version="1.0" encoding="UTF-8" ?>'
+            '<feedback>'
+            '  <version>1.0</version>'
+            '  <record>'
+            '    <row>'
+            '      <source_ip>10.10.10.10</source_ip>'
+            '    </row>'
+            '  </record>'
+            '  <record>'
+            '    <row>'
+            '      <source_ip>192.168.1.1</source_ip>'
+            '    </row>'
+            '  </record>'
+            '</feedback>'
+        )
+        xml_tree = xml.etree.ElementTree.parse(io.StringIO(xml_source))
+        domain_ips = set(('192.168.1.1','10.10.10.10'))
+        report = RuaReport(xml_tree, domain_ips)
+        report.validate_ips()
+        self.assertTrue(
+            report.ok(), msg='Domain and report IPs sets did not match')
+        self.assertFalse(len(report.errors), msg='Unexpected errors')
+
+    def test_validate_ips_fail(self):
+        xml_source = (
+            '<?xml version="1.0" encoding="UTF-8" ?>'
+            '<feedback>'
+            '  <version>1.0</version>'
+            '  <record>'
+            '    <row>'
+            '      <source_ip>10.10.10.10</source_ip>'
+            '    </row>'
+            '  </record>'
+            '</feedback>'
+        )
+        xml_tree = xml.etree.ElementTree.parse(io.StringIO(xml_source))
+        domain_ips = set(('10.10.10.1'))
+        report = RuaReport(xml_tree, domain_ips)
+        report.validate_ips()
+        self.assertFalse(
+            report.ok(), msg='Domain and report IPs matched unexpectedly')
+        self.assertEqual(len(report.errors), 1, msg='Unexpected errors count')
+        self.assertTrue('do not match expected IPs' in report.errors[0],
+                        msg='Error string mismatch on IPs check')
+
+    def test_validate_from_pass(self):
+        """Test two cases:
+        1) a record with both fields (matching)
+        2) a record with only one of the fields (ignored)"""
+        xml_source = (
+            '<?xml version="1.0" encoding="UTF-8" ?>'
+            '<feedback>'
+            '  <version>1.0</version>'
+            '  <record>'
+            '    <identifiers>'
+            '      <header_from>domain.org</header_from>'
+            '      <envelope_from>domain.org</envelope_from>'
+            '    </identifiers>'
+            '  </record>'
+            '  <record>'
+            '    <identifiers>'
+            '      <envelope_from>domain.org</envelope_from>'
+            '    </identifiers>'
+            '  </record>'
+            '</feedback>'
+        )
+        xml_tree = xml.etree.ElementTree.parse(io.StringIO(xml_source))
+        report = RuaReport(xml_tree, set())
+        report.validate_from()
+        self.assertTrue(
+            report.ok(), msg='Header and Envelope domain mismatch')
+        self.assertFalse(len(report.errors), msg='Unexpected errors')
+
+    def test_validate_from_fail(self):
+        xml_source = (
+            '<?xml version="1.0" encoding="UTF-8" ?>'
+            '<feedback>'
+            '  <version>1.0</version>'
+            '  <record>'
+            '    <identifiers>'
+            '      <header_from>domain.org</header_from>'
+            '      <envelope_from>other.org</envelope_from>'
+            '    </identifiers>'
+            '  </record>'
+            '</feedback>'
+        )
+        xml_tree = xml.etree.ElementTree.parse(io.StringIO(xml_source))
+        report = RuaReport(xml_tree, set())
+        report.validate_from()
+        self.assertFalse(
+            report.ok(), msg='Header and Envelope domain match unexpectedly')
+        self.assertEqual(len(report.errors), 1, msg='Incorrect error count')
+        self.assertTrue('Mismatched from fields in header' in report.errors[0],
+                        msg='Error text mismatch for "from" check')
 
 
 if __name__ == '__main__':
