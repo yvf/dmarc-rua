@@ -27,6 +27,8 @@ import sys
 import xml.etree.ElementTree
 import zipfile
 
+from email.mime.text import MIMEText
+from subprocess import run, PIPE
 from typing import List, Optional, TextIO, Union
 
 log = None
@@ -223,7 +225,8 @@ def split_ips(ctx, param, value) -> set:
               help='smtp format consumes raw email (RFC 5322)')
 @click.option('--ip', default=lambda: domain_mx_ips, callback=split_ips,
               help='Expected source IPs, comma separated. Defaults to MX hosts for domain.')
-def main(domain, ip, source, input_format='xml'):
+@click.option('--mail-result-to', help='Mail address to send verification report to')
+def main(domain, ip, source, input_format='xml', mail_result_to=False):
     """Process a DMARC rua report and check for various error conditions.
 
     If any error is found, exit 1. Exit 2 if the program is not
@@ -251,11 +254,32 @@ def main(domain, ip, source, input_format='xml'):
     report.validate_from()
     report.validate_dkim_spf()
 
+    if mail_result_to:
+        send_report(mail_result_to, report, domain)
+
     # Report errors (if any) and exit
     if not report.ok():
         for msg in report.errors:
             log.error(msg)
         sys.exit(1)
+
+def send_report(to, report, domain):
+    """Send email to recipient(s) with result of anlysis"""
+
+    # for now, send report even if success
+    org_name = report.root.find('./report_metadata/org_name').text
+    body = __file__ + ': DMARC report analysis below\n\n'
+    if report.errors:
+        body += str(len(report.errors)) + ' errors found:\n'
+        body += '\n'.join(report.errors)
+    else:
+        body += 'Report passed all checks.\n'
+
+    msg = MIMEText(body)
+    msg["From"] =f'dmarc-rua-verify@{domain}'
+    msg["To"] = to
+    msg["Subject"] = f'DMARC rua analysis for {org_name}'
+    run(["/usr/sbin/sendmail", "-t", "-oi"], input=msg.as_string(), text=True)
 
 
 if __name__ == '__main__':
