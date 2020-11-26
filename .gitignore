@@ -3,3 +3,6 @@ data/
 .mypy_cache/
 __pycache__/
 *~
+dist/
+*.egg-info/
+result
